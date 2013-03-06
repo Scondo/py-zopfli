@@ -3,6 +3,7 @@
 #include <stdlib.h>
 #include "zlib_container.h"
 #include "gzip_container.h"
+#include "deflate.h"
 #include "util.h"
 
 
@@ -52,6 +53,53 @@ zopfli_compress(PyObject *self, PyObject *args, PyObject *keywrds)
 }
 
 
+static PyObject *
+zopfli_deflate(PyObject *self, PyObject *args, PyObject *keywrds)
+{
+  const unsigned char *in;
+  unsigned char *in2, *out;
+  size_t insize=0; 
+  size_t outsize=0;  
+  Options options;
+  InitOptions(&options);
+  options.verbose = 0;
+  options.numiterations = 15;
+  options.blocksplitting = 1;
+  options.blocksplittinglast = 0;
+  options.blocksplittingmax = 15;
+  int blocktype = 2;
+  int blockfinal = 1;
+  unsigned char bitpointer = 0;
+  
+  static char *kwlist[] = {"data", "verbose", "numiterations", "blocksplitting", "blocksplittinglast", "blocksplittingmax", "blocktype","blockfinal", NULL};
+  
+  if (!PyArg_ParseTupleAndKeywords(args, keywrds, "s#|iiiiiii", kwlist, &in, &insize,
+				   &options.verbose,
+				   &options.numiterations,
+				   &options.blocksplitting,
+				   &options.blocksplittinglast,
+				   &options.blocksplittingmax,
+				   &blocktype,
+				   &blockfinal))
+    return NULL;
+
+  Py_BEGIN_ALLOW_THREADS
+    
+  in2 = malloc(insize);
+  memcpy(in2, in, insize);
+
+  Deflate(&options, blocktype, blockfinal, in2, insize, &bitpointer, &out, &outsize);
+  
+  free(in2);
+  Py_END_ALLOW_THREADS
+  
+  PyObject *returnValue;
+  returnValue = Py_BuildValue("s#", out, outsize);
+  free(out);
+  return returnValue;
+}
+
+
 static char docstring[] = "" 
   "zopfli.zopfli.compress applies zopfli zip or gzip compression to an obj." 
   "" \
@@ -62,11 +110,20 @@ static char docstring[] = ""
   "If gzip_mode is set to a non-zero value, a Gzip compatbile container will "
   "be generated, otherwise a zlib compatible container will be generated. ";
 
+static char docstringd[] = "" 
+  "zopfli.zopfli.compress applies zopfli deflate compression to an obj." 
+  "" \
+  "zopfli.zopfli.compress("
+  "  s, **kwargs, verbose=0, numiterations=15, blocksplitting=1, "
+  "  blocksplittinglast=0, blocksplittingmax=15, blocktype=2, blockfinal=1)"
+  "";
+
 
 static PyObject *ZopfliError;
 
 static PyMethodDef ZopfliMethods[] = {
   { "compress", zopfli_compress,  METH_KEYWORDS, docstring},
+  { "deflate", zopfli_deflate,  METH_KEYWORDS, docstringd},
 
   { NULL, NULL, 0, NULL}
 };
