@@ -22,7 +22,7 @@ def compress(data, *args, **kwargs):
     out.append(2)    # XFL, 2 indicates best compression
     out.append(3)    # OS follows Unix conventions
 
-    out.extend(zopfli.zopfli.deflate(data, **kwargs))
+    out.extend(zopfli.zopfli.deflate(data, **kwargs)[0])
 
     out.append(crcvalue % 256)
     out.append((crcvalue >> 8) % 256)
