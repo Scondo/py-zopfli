@@ -1,7 +1,7 @@
 #define PY_SSIZE_T_CLEAN size_t
 #include <Python.h>
 #include <stdlib.h>
-#include "deflate.h"
+#include "zopfli.h"
 #include "util.h"
 
 static PyObject *
@@ -11,8 +11,8 @@ zopfli_deflate(PyObject *self, PyObject *args, PyObject *keywrds)
   unsigned char *in2, *out2;
   size_t insize=0; 
   size_t outsize=0;  
-  Options options;
-  InitOptions(&options);
+  ZopfliOptions options;
+  ZopfliInitOptions(&options);
   options.verbose = 0;
   options.numiterations = 15;
   options.blocksplitting = 1;
@@ -42,7 +42,7 @@ zopfli_deflate(PyObject *self, PyObject *args, PyObject *keywrds)
   out2 = malloc(outsize);
   memcpy(out2, out, outsize);
   
-  Deflate(&options, blocktype, blockfinal, in2, insize, &bitpointer, &out2, &outsize);
+  ZopfliDeflate(&options, blocktype, blockfinal, in2, insize, &bitpointer, &out2, &outsize);
   free(in2);
   Py_END_ALLOW_THREADS
   PyObject *returnValue;
