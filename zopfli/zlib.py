@@ -2,9 +2,41 @@ from __future__ import absolute_import
 
 import zopfli
 import zopfli.zopfli
-import zlib
+from zlib import adler32
+from zlib import crc32
+from zlib import decompress, decompressobj
+from zlib import error
+try:
+    from zlib import DEFLATED, DEF_MEM_LEVEL, MAX_WBITS, Z_DEFAULT_STRATEGY
+    from zlib import Z_NO_FLUSH, Z_SYNC_FLUSH, Z_FULL_FLUSH, Z_FINISH
+    from zlib import Z_NO_COMPRESSION, Z_BEST_SPEED, Z_BEST_COMPRESSION, Z_DEFAULT_COMPRESSION
+except ImportError:
+    Z_NO_FLUSH = 0
+    #Z_PARTIAL_FLUSH = 1
+    Z_SYNC_FLUSH = 2
+    Z_FULL_FLUSH = 3
+    Z_FINISH = 4
+    #Z_BLOCK = 5
+    #Z_TREES = 6
+    #Compression levels.
+    Z_NO_COMPRESSION = 0
+    Z_BEST_SPEED = 1
+    Z_BEST_COMPRESSION = 9
+    Z_DEFAULT_COMPRESSION = -1
+    #Compression strategy
+    Z_FILTERED = 1
+    Z_HUFFMAN_ONLY = 2
+    Z_RLE = 3
+    Z_FIXED = 4
+    Z_DEFAULT_STRATEGY = 0
+    #The deflate compression method (the only one supported in this version).
+    DEFLATED = 8
+    DEF_MEM_LEVEL = 8
+    MAX_WBITS = 15
 
-levit = {1: 1,
+levit = {-1: 15,
+         0: 1,
+         1: 1,
          2: 3,
          3: 5,
          4: 10,
@@ -17,25 +49,54 @@ levit = {1: 1,
 MASTER_BLOCK_SIZE = 20000000
 
 
-def bytecross(first, second, border):
-    mask = 0
-    for i in range(0, border):
-        mask = mask + pow(2, i)
-    first = first & mask
-    second = second & ~mask
-    return first | second
+def int2bitlist(data, length):
+    res = []
+    nowbyte = data
+    for nbit in range(0, length):
+        (nowbyte, bit) = divmod(nowbyte, 2)
+        res.append(bit)
+    res.reverse()
+    return res
+
+
+def bitlist2int(data):
+    data = list(data)
+    data.reverse()
+    res = 0
+    for nbit, bit in enumerate(data):
+        res += bit << nbit
+    return res
 
 
 class compressobj(object):
-    def __init__(self, level=None, **kwargs):
+    def __init__(self, level=Z_DEFAULT_COMPRESSION, method=DEFLATED, windowBits=MAX_WBITS, memlevel=DEF_MEM_LEVEL, strategy=Z_DEFAULT_STRATEGY, **kwargs):
+        '''simulate zlib deflateInit2
+        level - compression level
+        method - compression method, only DEFLATED supported
+        windowBits - should be in the range 8..15, practically ignored
+                     can also be -8..-15 for raw deflate
+                     zlib also have gz with "Add 16 to windowBit" - not implemented here
+        memlevel - originally specifies how much memory should be allocated
+                    zopfli - ignored
+        strategy - originally is used to tune the compression algorithm
+                    zopfli - ignored
+        '''
+        if method != DEFLATED:
+            raise error
+        self.raw = windowBits < 0
+        if abs(windowBits) > MAX_WBITS or abs(windowBits) < 5:
+            raise ValueError
         self.crc = None
         self.buf = bytearray('')
         self.bit = 0
         self.first = True
         self.opt = kwargs
         self.lastbyte = ''
-        if level != None:
-            self.opt['numiterations'] = levit[level]
+        if 'numiterations' not in self.opt:
+            if level in levit:
+                self.opt['numiterations'] = levit[level]
+            else:
+                raise error
 
     def _header(self):
         cmf = 120
@@ -59,12 +120,12 @@ class compressobj(object):
         return out
 
     def _updatecrc(self):
-        if self.buf == None:
+        if self.buf == None or self.raw:
             return
         if self.crc == None:
-            self.crc = zlib.adler32(str(self.buf))
+            self.crc = adler32(str(self.buf))
         else:
-            self.crc = zlib.adler32(str(self.buf), self.crc)
+            self.crc = adler32(str(self.buf), self.crc)
 
     def _compress(self, final=None):
         self._updatecrc()
@@ -85,29 +146,53 @@ class compressobj(object):
         self.buf.extend(bytearray(string))
         if len(self.buf) > MASTER_BLOCK_SIZE:
             out = bytearray()
-            if self.first:
+            if not self.raw and self.first:
                 out.extend(self._header())
                 self.first = False
             out.extend(self._compress())
             return str(out)
+        else:
+            return b''
 
-    def flush(self):
+    def flush(self, mode=Z_FINISH):
         out = bytearray()
-        if self.first:
+        #mode = Z_FINISH
+        if not self.raw and self.first:
             out.extend(self._header())
-        out.extend(self._compress(True))
-        out.extend(self._tail())
+        out.extend(self._compress(mode == Z_FINISH))
+        if mode != Z_FINISH:
+            self.bit = self.bit % 8
+            if self.bit:
+                work = int2bitlist(self.lastbyte.pop(), 8)
+            else:
+                work = [0, 0, 0, 0, 0, 0, 0, 0]
+            work.reverse()
+            if self.bit > 4:
+                work.extend((0, ) * 8)
+            work[self.bit:self.bit + 3] = [0, 0, 0]
+            work.reverse()
+            self.lastbyte.append(bitlist2int(work[-8:]))
+            if len(work) == 16:
+                self.lastbyte.append(bitlist2int(work[:8]))
+            self.lastbyte.extend((0, 0, 255, 255))
+            out.extend(self.lastbyte)
+            self.lastbyte = ''
+            self.bit = 0
+            #add void fixed block
+
+        if not self.raw and mode == Z_FINISH:
+            out.extend(self._tail())
         return str(out)
 
 
-def compress(data, **kwargs):
+def compress(data, level=6, **kwargs):
     """zlib.compress(data, **kwargs)
     
     """ + zopfli.__COMPRESSOR_DOCSTRING__  + """
     Returns:
       String containing a zlib container
     """
-    cmpobj = compressobj(**kwargs)
+    cmpobj = compressobj(level=level, **kwargs)
     data1 = cmpobj.compress(data)
     data2 = cmpobj.flush()
 

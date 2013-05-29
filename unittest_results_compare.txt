@@ -1,0 +1,36 @@
+Zopfli
+zlib
+test_decompress_unused_data - fail
+test_flush_with_freed_input - fail
+test_flushes - error  !
+test_pair - fail  !
+
+gzip
+test_read_truncated - error
+test_read_universal_newlines - error
+
+zip
+test_change_comment_in_nonempty_archive - fail
+test_damaged_zipfile - error
+test_unsupported_compression - fail
+test_bug_6050 - error
+test_extract_dir - error
+test_extract_hackers_arcnames - fail
+
+
+Native
+zlib
+test_decompress_unused_data - fail
+test_flush_with_freed_input - fail
+
+gzip
+test_read_truncated - error
+test_read_universal_newlines - error
+
+zip
+test_change_comment_in_nonempty_archive - fail
+test_damaged_zipfile - error
+test_unsupported_compression - fail
+test_bug_6050 - error
+test_extract_dir - error
+test_extract_hackers_arcnames - fail
