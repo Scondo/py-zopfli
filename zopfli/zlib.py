@@ -159,6 +159,7 @@ class compressobj(object):
         #mode = Z_FINISH
         if not self.raw and self.first:
             out.extend(self._header())
+            self.first = False
         out.extend(self._compress(mode == Z_FINISH))
         if mode != Z_FINISH:
             self.bit = self.bit % 8

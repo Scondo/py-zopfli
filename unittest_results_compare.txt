@@ -2,7 +2,6 @@ Zopfli
 zlib
 test_decompress_unused_data - fail
 test_flush_with_freed_input - fail
-test_flushes - error  !
 test_pair - fail  !
 
 gzip
