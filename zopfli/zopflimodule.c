@@ -2,6 +2,7 @@
 #include <Python.h>
 #include <stdlib.h>
 #include "zopfli.h"
+#include "deflate.h"
 #include "util.h"
 
 static PyObject *
@@ -9,7 +10,8 @@ zopfli_deflate(PyObject *self, PyObject *args, PyObject *keywrds)
 {
   const unsigned char *in, *out;
   unsigned char *in2, *out2;
-  size_t insize=0; 
+  size_t insize=0;
+  size_t prehist=0; 
   size_t outsize=0;  
   ZopfliOptions options;
   ZopfliInitOptions(&options);
@@ -22,9 +24,9 @@ zopfli_deflate(PyObject *self, PyObject *args, PyObject *keywrds)
   int blockfinal = 1;
   unsigned char bitpointer = 0;
   
-  static char *kwlist[] = {"data", "verbose", "numiterations", "blocksplitting", "blocksplittinglast", "blocksplittingmax", "blocktype","blockfinal","bitpointer","old_tail", NULL};
+  static char *kwlist[] = {"data", "verbose", "numiterations", "blocksplitting", "blocksplittinglast", "blocksplittingmax", "blocktype","blockfinal","bitpointer","old_tail","prehist", NULL};
   
-  if (!PyArg_ParseTupleAndKeywords(args, keywrds, "s#|iiiiiiiBs#", kwlist, &in, &insize,
+  if (!PyArg_ParseTupleAndKeywords(args, keywrds, "s#|iiiiiiiBs#i", kwlist, &in, &insize,
 				   &options.verbose,
 				   &options.numiterations,
 				   &options.blocksplitting,
@@ -33,7 +35,8 @@ zopfli_deflate(PyObject *self, PyObject *args, PyObject *keywrds)
 				   &blocktype,
 				   &blockfinal,
 				   &bitpointer,
-				   &out, &outsize))
+				   &out, &outsize,
+				   &prehist))
     return NULL;
 
   Py_BEGIN_ALLOW_THREADS
@@ -42,7 +45,8 @@ zopfli_deflate(PyObject *self, PyObject *args, PyObject *keywrds)
   out2 = malloc(outsize);
   memcpy(out2, out, outsize);
   
-  ZopfliDeflate(&options, blocktype, blockfinal, in2, insize, &bitpointer, &out2, &outsize);
+  ZopfliDeflatePart(&options, blocktype, blockfinal, in2, prehist, insize, &bitpointer, &out2, &outsize);
+  
   free(in2);
   Py_END_ALLOW_THREADS
   PyObject *returnValue;
@@ -57,7 +61,7 @@ static char docstringd[] = ""
   "zopfli.zopfli.compress("
   "  s, **kwargs, verbose=0, numiterations=15, blocksplitting=1, "
   "  blocksplittinglast=0, blocksplittingmax=15, "
-  "  blocktype=2, blockfinal=1, bitpointer=0, oldtail='')"
+  "  blocktype=2, blockfinal=1, bitpointer=0, oldtail='', prehist=0)"
   "";
 
 

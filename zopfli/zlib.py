@@ -87,7 +87,9 @@ class compressobj(object):
         if abs(windowBits) > MAX_WBITS or abs(windowBits) < 5:
             raise ValueError
         self.crc = None
-        self.buf = bytearray('')
+        self.buf = bytearray()
+        self.prehist = bytearray()
+        self.closed = False
         self.bit = 0
         self.first = True
         self.opt = kwargs
@@ -130,8 +132,12 @@ class compressobj(object):
     def _compress(self, final=None):
         self._updatecrc()
         blockfinal = 1 if final else 0
-        data = zopfli.zopfli.deflate(str(self.buf), old_tail=buffer(self.lastbyte), bitpointer=self.bit, blockfinal=blockfinal, **self.opt)
-        self.buf = bytearray('')
+        indata = self.prehist
+        prehist = len(self.prehist)
+        indata.extend(self.buf)
+        self.buf = bytearray()
+        self.prehist = indata[-33000:]
+        data = zopfli.zopfli.deflate(str(indata), old_tail=buffer(self.lastbyte), bitpointer=self.bit, blockfinal=blockfinal, prehist=prehist, **self.opt)
         res = bytearray(data[0])
         self.bit = data[1]
         if final:
@@ -155,14 +161,20 @@ class compressobj(object):
             return b''
 
     def flush(self, mode=Z_FINISH):
+        if self.closed:
+            raise error
         out = bytearray()
+        self.closed = mode == Z_FINISH
         #mode = Z_FINISH
         if not self.raw and self.first:
             out.extend(self._header())
             self.first = False
+        if mode == Z_NO_FLUSH:
+            return str(out)
         out.extend(self._compress(mode == Z_FINISH))
         if mode != Z_FINISH:
             self.bit = self.bit % 8
+            #add void fixed block
             if self.bit:
                 work = int2bitlist(self.lastbyte.pop(), 8)
             else:
@@ -179,7 +191,8 @@ class compressobj(object):
             out.extend(self.lastbyte)
             self.lastbyte = ''
             self.bit = 0
-            #add void fixed block
+            if mode == Z_FULL_FLUSH:
+                self.prehist = bytearray()
 
         if not self.raw and mode == Z_FINISH:
             out.extend(self._tail())
@@ -188,8 +201,8 @@ class compressobj(object):
 
 def compress(data, level=6, **kwargs):
     """zlib.compress(data, **kwargs)
-    
-    """ + zopfli.__COMPRESSOR_DOCSTRING__  + """
+
+    """ + zopfli.__COMPRESSOR_DOCSTRING__ + """
     Returns:
       String containing a zlib container
     """
