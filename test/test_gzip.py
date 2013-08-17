@@ -8,7 +8,7 @@ import os
 import io
 import struct
 gzip = test_support.import_module('gzip')
-import zopfli.zlib as zlib
+import pyzopfli.zlib as zlib
 gzip.zlib = zlib
 data1 = """  int length=DEFAULTALLOC, err = Z_OK;
   PyObject *RetVal;

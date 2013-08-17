@@ -1,7 +1,7 @@
 from __future__ import absolute_import
 
-import zopfli
-import zopfli.zopfli
+import pyzopfli
+import pyzopfli.zopfli
 from zlib import adler32
 from zlib import crc32
 from zlib import decompress, decompressobj
@@ -9,7 +9,8 @@ from zlib import error
 try:
     from zlib import DEFLATED, DEF_MEM_LEVEL, MAX_WBITS, Z_DEFAULT_STRATEGY
     from zlib import Z_NO_FLUSH, Z_SYNC_FLUSH, Z_FULL_FLUSH, Z_FINISH
-    from zlib import Z_NO_COMPRESSION, Z_BEST_SPEED, Z_BEST_COMPRESSION, Z_DEFAULT_COMPRESSION
+    from zlib import Z_NO_COMPRESSION, Z_BEST_SPEED, Z_BEST_COMPRESSION
+    from zlib import Z_DEFAULT_COMPRESSION
 except ImportError:
     Z_NO_FLUSH = 0
     #Z_PARTIAL_FLUSH = 1
@@ -52,7 +53,7 @@ MASTER_BLOCK_SIZE = 20000000
 def int2bitlist(data, length):
     res = []
     nowbyte = data
-    for nbit in range(0, length):
+    for nbit in range(length):
         (nowbyte, bit) = divmod(nowbyte, 2)
         res.append(bit)
     res.reverse()
@@ -60,22 +61,22 @@ def int2bitlist(data, length):
 
 
 def bitlist2int(data):
-    data = list(data)
-    data.reverse()
     res = 0
-    for nbit, bit in enumerate(data):
-        res += bit << nbit
+    for bit in data:
+        res = bit + res * 2
     return res
 
-
 class compressobj(object):
-    def __init__(self, level=Z_DEFAULT_COMPRESSION, method=DEFLATED, windowBits=MAX_WBITS, memlevel=DEF_MEM_LEVEL, strategy=Z_DEFAULT_STRATEGY, **kwargs):
+    def __init__(self, level=Z_DEFAULT_COMPRESSION, method=DEFLATED,
+                 windowBits=MAX_WBITS, memlevel=DEF_MEM_LEVEL,
+                 strategy=Z_DEFAULT_STRATEGY, **kwargs):
         '''simulate zlib deflateInit2
         level - compression level
         method - compression method, only DEFLATED supported
         windowBits - should be in the range 8..15, practically ignored
                      can also be -8..-15 for raw deflate
-                     zlib also have gz with "Add 16 to windowBit" - not implemented here
+                     zlib also have gz with "Add 16 to windowBit"
+                                         - not implemented here
         memlevel - originally specifies how much memory should be allocated
                     zopfli - ignored
         strategy - originally is used to tune the compression algorithm
@@ -137,7 +138,11 @@ class compressobj(object):
         indata.extend(self.buf)
         self.buf = bytearray()
         self.prehist = indata[-33000:]
-        data = zopfli.zopfli.deflate(str(indata), old_tail=buffer(self.lastbyte), bitpointer=self.bit, blockfinal=blockfinal, prehist=prehist, **self.opt)
+        data = pyzopfli.zopfli.deflate(str(indata),
+                                     old_tail=buffer(self.lastbyte),
+                                     bitpointer=self.bit,
+                                     blockfinal=blockfinal,
+                                     prehist=prehist, **self.opt)
         res = bytearray(data[0])
         self.bit = data[1]
         if final:
@@ -202,7 +207,7 @@ class compressobj(object):
 def compress(data, level=6, **kwargs):
     """zlib.compress(data, **kwargs)
 
-    """ + zopfli.__COMPRESSOR_DOCSTRING__ + """
+    """ + pyzopfli.__COMPRESSOR_DOCSTRING__ + """
     Returns:
       String containing a zlib container
     """

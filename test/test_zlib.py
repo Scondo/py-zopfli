@@ -11,7 +11,7 @@ except ImportError:
     mmap = None
 
 #zlib = import_module('zlib')
-import zopfli.zlib as zlib
+import pyzopfli.zlib as zlib
 
 class ChecksumTestCase(unittest.TestCase):
     # checksum test cases

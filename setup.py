@@ -9,34 +9,33 @@ Python bindings to zopfli
 from setuptools import setup, Extension
 
 setup(
-    name='zopfli',
-    version='0.0.2',
-    author='Adam DePrince',
-    author_email='adeprince@nypublicradio.org',
+    name='pyzopfli',
+    version='0.1.0',
+    author='Pavel Zlatovratsky (Scondo)',
+    author_email='scondo@mail.ru',
     description='Zopfli module for python',
     long_description=__doc__,
     py_modules = [
-        'zopfli',
-        'zopfli.gzip',
-        'zopfli.zlib',
+        'pyzopfli',
+        'pyzopfli.zlib',
         ],
-    ext_modules = [Extension('zopfli.zopfli',
+    ext_modules = [Extension('pyzopfli.zopfli',
                              opts = "-O2 -W -Wall -Wextra -ansi -pedantic -lm",
                              sources = [
-                'zopfli/blocksplitter.c',
-                'zopfli/cache.c',
-                'zopfli/deflate.c',
-                'zopfli/squeeze.c',
-                'zopfli/hash.c',
-                'zopfli/katajainen.c',
-                'zopfli/lz77.c', 
-                'zopfli/tree.c',
-                'zopfli/util.c',
-                 'zopfli/zopflimodule.c',
+                'pyzopfli/blocksplitter.c',
+                'pyzopfli/cache.c',
+                'pyzopfli/deflate.c',
+                'pyzopfli/squeeze.c',
+                'pyzopfli/hash.c',
+                'pyzopfli/katajainen.c',
+                'pyzopfli/lz77.c', 
+                'pyzopfli/tree.c',
+                'pyzopfli/util.c',
+                'pyzopfli/zopflimodule.c',
                 ],
                              libraries = []
                              )],
-    packages = ["zopfli"],
+    packages = ["pyzopfli"],
     zip_safe=True,
     license='ASL',
     include_package_data=True,
@@ -48,7 +47,7 @@ setup(
         ],
     scripts = [
         ],
-    url = "https://github.com/wnyc/pyzopfli",
+    url = "https://github.com/Scondo/pyzopfli",
     install_requires = [
         ]
 )

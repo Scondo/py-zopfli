@@ -1,6 +1,6 @@
 # We can test part of the module without zlib.
 try:
-    import zopfli.zlib as zlib
+    import pyzopfli.zlib as zlib
     #import zlib
 except ImportError:
     zlib = None
